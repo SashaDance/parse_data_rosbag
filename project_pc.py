@@ -17,8 +17,8 @@ extrinsic = np.array([
     [0, 0, 0, 1]
 ])
 
-img_path = '1740747812728717295/image_1740747812728717295.png'
-pc_path = '1740747812728717295/point_cloud_1740747812724153385.pcd'
+img_path = 'data (1)/1740747772538983602/image_1740747772538983602.png'
+pc_path = 'data (1)/1740747772538983602/point_cloud_1740747772514434381.pcd'
 label_path = '1740747812728717295/image_1740747812728717295.txt'
 
 def project_points_to_camera(
