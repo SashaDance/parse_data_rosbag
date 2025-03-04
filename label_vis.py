@@ -9,16 +9,14 @@ class_colors = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0), (0, 255, 2
 
 # Paths to your images and labels
 image_paths = [
-    'selected/1740145201997976729/image_1740145201997976729.png',
-    'selected/1740145651629282926/image_1740145651629282926.png'
+    '1740747812728717295/image_1740747812728717295.png',
 ]
 label_paths = [
-    'rcs/labels/train/image_1740145201997976729.txt',
-    'rcs/labels/train/image_1740145651629282926.txt'
+    '1740747812728717295/image_1740747812728717295.txt',
 ]
 
 # Create a figure with three subplots
-fig, axs = plt.subplots(2, 1, figsize=(15, 5))
+fig, axs = plt.subplots(1, 1, figsize=(15, 5))
 img_to_dataset = {
     0: 'fish',
     1: 'mini',
@@ -56,7 +54,7 @@ for idx, (image_path, label_path) in enumerate(zip(image_paths, label_paths)):
         # Color the mask based on the class
         color = class_colors[class_id]
         colored_mask = np.zeros_like(image)
-        colored_mask[binary_mask == 1] = color
+        colored_mask[binary_mask == 1] = class_colors[0] if class_id == 1 else class_colors[3]# color
 
         # Add borders to the mask
         contours, _ = cv2.findContours(binary_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -69,21 +67,21 @@ for idx, (image_path, label_path) in enumerate(zip(image_paths, label_paths)):
     combined_image = cv2.addWeighted(image, 0.7, mask_image, 0.3, 0)
 
     # Display the combined image in the subplot
-    axs[idx].imshow(combined_image)
+    axs.imshow(combined_image)
     # axs[idx].set_title(f'{img_to_dataset[idx]}')
-    axs[idx].axis('off')
+    axs.axis('off')
 
 # Add labels on the left side of the row
-for idx, ax in enumerate(axs):
+for idx in [0]:
     # Add a title for each image
     # ax.set_title(f'{img_to_dataset[idx]}', fontsize=12, pad=10)
 
     # Add class labels above the image
     for i, (class_name, color) in enumerate(zip(class_names, class_colors)):
         # Create a colored rectangle and text
-        rect = plt.Rectangle((0.02 + i * 0.2, 0.02), 0.15, 0.05, color=np.array(color) / 255, transform=ax.transAxes)
-        ax.add_patch(rect)
-        ax.text(0.1 + i * 0.2, 0.04, class_name, color='black', fontsize=10, ha='center', va='center', transform=ax.transAxes)
+        rect = plt.Rectangle((0.02 + i * 0.2, 0.02), 0.15, 0.05, color=np.array(color) / 255, transform=axs.transAxes)
+        axs.add_patch(rect)
+        axs.text(0.1 + i * 0.2, 0.04, class_name, color='black', fontsize=10, ha='center', va='center', transform=axs.transAxes)
 
 plt.tight_layout()
 plt.show()

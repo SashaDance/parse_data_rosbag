@@ -17,9 +17,9 @@ extrinsic = np.array([
     [0, 0, 0, 1]
 ])
 
-img_path = 'selected/1740145651629282926/image_1740145651629282926.png'
-pc_path = 'selected/1740145651629282926/point_cloud_1740145651663450240.pcd'
-label_path = 'rcs/labels/train/image_1740145651629282926.txt'
+img_path = '1740747812728717295/image_1740747812728717295.png'
+pc_path = '1740747812728717295/point_cloud_1740747812724153385.pcd'
+label_path = '1740747812728717295/image_1740747812728717295.txt'
 
 def project_points_to_camera(
     points: np.ndarray, proj_matrix: np.ndarray, cam_res: Tuple[int, int]
@@ -85,7 +85,8 @@ for point, d in zip(uv.T, rgb_distances):
     c = (int(d[0]), int(d[1]), int(d[2]))
     cv2.circle(image, point, radius=2, color=c, thickness=cv2.FILLED)
 
-plt.imshow(image)
+plt.imshow(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+plt.axis(False)
 plt.show()
 
 # Load YOLO segmentation labels
