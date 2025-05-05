@@ -5,18 +5,6 @@ from tqdm import tqdm
 from typing import Tuple
 from parse_synchronized_frames import get_image_pointcloud_pairs
 
-proj_matrix = np.array([
-    [958.25209249, 0, 617.35434211, 0],
-    [0, 957.39654998, 357.38740741, 0],
-    [0, 0, 1, 0]
-])
-extrinsic = np.array([
-    [-1.2582e-05, -0.999986, 0.00523595, 0.297609],
-    [-0.0124447, -0.00523539, -0.999909, -0.0185331],
-    [0.999923, -7.77404e-05, -0.0124444, -0.000275199],
-    [0, 0, 0, 1]
-])
-
 def project_points_to_camera(
     points: np.ndarray, proj_matrix: np.ndarray, cam_res: Tuple[int, int], max_dist: float = None
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -39,6 +27,7 @@ def project_points_to_camera(
         in_range = np.linalg.norm(points[:2, :], axis=0) <= max_dist
     else:
         in_range = np.ones(points.shape[1]).astype(bool)
+    arr.append(in_range.sum())
     in_image = points[2, :] > 0  # Filter for points in front of the camera
     depths = points[2, in_image & in_range]
     uvw = np.dot(proj_matrix, points[:, in_image & in_range])
@@ -55,7 +44,7 @@ def project_points_to_camera(
     original_indices = np.where(in_image & in_range)[0][valid]
     return uv_valid, depths_valid, original_indices
 
-def depths_to_colors(depths: np.ndarray, max_depth: int = 10, cmap: str = "hsv") -> np.ndarray:
+def depths_to_colors(depths: np.ndarray, max_depth: int = 50, cmap: str = "hsv") -> np.ndarray:
     """
     Maps depth values to RGB colors using a specified colormap.
     
@@ -72,7 +61,14 @@ def depths_to_colors(depths: np.ndarray, max_depth: int = 10, cmap: str = "hsv")
     rgba_values = to_colormap(depths, bytes=True)
     return rgba_values[:, :3].astype(int)
 
-def main(bag_path: str, max_dist: float, fps: int = 4, save_name: str = 'pc_projection.avi'):
+def main(bag_path: str, 
+         extrinsic_path: str,
+         max_dist: float = None, 
+         fps: int = 4, 
+         save_name: str = 'pc_projection.avi', 
+         fix_pc: bool = False):
+    proj_matrix = np.load('parameters/intrinsic.npy')
+    extrinsic = np.load(extrinsic_path)
     # Output video filename
     output_video = save_name
     
@@ -81,7 +77,7 @@ def main(bag_path: str, max_dist: float, fps: int = 4, save_name: str = 'pc_proj
     fourcc = cv2.VideoWriter_fourcc(*'XVID')
     video_writer = cv2.VideoWriter(output_video, fourcc, fps, frame_size)
 
-    generator = get_image_pointcloud_pairs(bag_path=bag_path)
+    generator = get_image_pointcloud_pairs(bag_path=bag_path, fix_pc=fix_pc)
     for image, points in tqdm(generator):
         points = points.T
         points = np.vstack([points, np.ones((1, points.shape[1]))])
@@ -89,25 +85,37 @@ def main(bag_path: str, max_dist: float, fps: int = 4, save_name: str = 'pc_proj
         points_cam = extrinsic @ points
 
         uv, depths, _ = project_points_to_camera(points_cam, proj_matrix, frame_size, max_dist)
-        rgb_colors = depths_to_colors(depths, max_depth=10)
+        rgb_colors = depths_to_colors(depths, max_depth=110)
 
+        # Create an overlay for transparent drawing
+        overlay = image.copy()
+        
         for point, color in zip(uv.T, rgb_colors):
+            # Draw on the overlay
             cv2.circle(
-                image, 
+                overlay, 
                 tuple(point), 
                 radius=2, 
-                color=(int(color[0]), int(color[1]), int(color[2])), thickness=cv2.FILLED
+                color=(int(color[0]), int(color[1]), int(color[2])), 
+                thickness=cv2.FILLED
             )
+        
+        # Blend the overlay with the original image using alpha channel
+        alpha = 0.5  # Transparency factor (0 = fully transparent, 1 = fully opaque)
+        image = cv2.addWeighted(overlay, alpha, image, 1 - alpha, 0)
 
         image = cv2.resize(image, frame_size)
         video_writer.write(image)
-
     video_writer.release()
     print(f'Video saved as: {output_video}')
 
 if __name__ == '__main__':
+    arr = []
     main(
-        'fixed_rosbag/fixed_rosbag_0.db3',
-        save_name='fixed.avi',
-        max_dist=50
+        'path.db3',
+        'path.npy',
+        save_name='test_dist.avi',
+        max_dist=50,
+        fix_pc=True
     )
+    print(np.mean(arr))

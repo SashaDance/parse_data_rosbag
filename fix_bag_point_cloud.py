@@ -36,15 +36,10 @@ def convert_pc(point_cloud: np.ndarray,
 
 # --- Main processing class ---
 class PointCloudFixer:
-    def __init__(self, input_bag_path, output_bag_path):
+    def __init__(self, input_bag_path, extrinsic_path, output_bag_path):
         self.input_bag_path = input_bag_path
         self.output_bag_path = output_bag_path
-        self.extrinsic = np.array([
-            [-0.00090784,-0.999993,0.00334244,0.30637],
-            [-0.0105471,-0.00333269,-0.999939,-0.0190283],
-            [0.999944,-0.000943034,-0.010544,0.0432003],
-            [0,0,0,1]
-        ])
+        self.extrinsic = np.load(extrinsic_path)
         self.static_written = False
 
     def create_tf_message(self, timestamp):
@@ -138,17 +133,17 @@ class PointCloudFixer:
             else:
                 writer.write(topic, data, t)
 
-        print(f"✅ New bag written to {self.output_bag_path}")
+        print(f"New bag written to {self.output_bag_path}")
 
 
 def main():
     import sys
     rclpy.init()
-    if len(sys.argv) < 3:
-        print("Usage: python3 fix_bag.py <input_bag_path> <output_bag_path>")
+    if len(sys.argv) < 4:
+        print("Usage: python3 fix_bag_point_cloud.py <input_bag_path> <extrinsic_path> <output_bag_path>")
         return
 
-    fixer = PointCloudFixer(sys.argv[1], sys.argv[2])
+    fixer = PointCloudFixer(sys.argv[1], sys.argv[2], sys.argv[3])
     fixer.fix_bag()
     rclpy.shutdown()
 
