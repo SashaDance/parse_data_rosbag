@@ -7,15 +7,22 @@ from rclpy.serialization import deserialize_message, serialize_message
 from geometry_msgs.msg import TransformStamped
 from tf2_msgs.msg import TFMessage
 import numpy as np
-import os
+from scipy.spatial.transform import Rotation
 from builtin_interfaces.msg import Time
 
+
+extrinsic = np.array([[0.00867315,-0.999956,0.00342156,0.296562],
+[-0.00140877,-0.00343391,-0.999993,-0.0114525],
+[0.999962,0.00866828,-0.00143847,0.0432614],
+[0,0,0,1]])
+rot = Rotation.from_matrix(extrinsic[:3, :3])
+print(rot.as_quat())
 # --- Your conversion function ---
 def convert_pc(point_cloud: np.ndarray, 
                elev_range: list[float], 
-               azim_range: list[float],
-               num_elev: int, 
-               num_azim: int = 480) -> np.ndarray:
+               azim_range: list[float]) -> np.ndarray:
+    num_azim = 480
+    num_elev = point_cloud.shape[0] // num_azim
     assert point_cloud.shape[1] == 3, f'Expected pc shape to be (n, 3), got {point_cloud.shape}'    
     point_cloud = point_cloud.reshape(num_azim, num_elev, 3)
     neg_mask = np.where(point_cloud[:, :, 0] >= 0, 1, -1)
@@ -42,15 +49,15 @@ class PointCloudFixer:
         self.tf_interval = 0.1  # seconds between TF messages
         self.last_tf_time = None
 
-    def create_tf_message(self, timestamp, is_static=False):
-        """Create a TF message (can be static or dynamic)"""
+    def create_tf_message(self, timestamp):
+        """Create a TF message"""
         tf_msg = TFMessage()
         transform = TransformStamped()
         
         # Set header
         transform.header.stamp = timestamp
-        transform.header.frame_id = 'odom'  # parent frame
-        transform.child_frame_id = 'base_link'  # child frame
+        transform.header.frame_id = 'camera'  # parent frame
+        transform.child_frame_id = 'huawei_lidar'  # child frame
         
         # Set transform - adjust these values to your needs
         transform.transform.translation.x = 0.0
@@ -64,18 +71,6 @@ class PointCloudFixer:
         transform.transform.rotation.w = 1.0
         
         tf_msg.transforms.append(transform)
-        
-        # Add another transform if needed (e.g., base_link to lidar)
-        if True:  # Set to False if you don't need this
-            transform2 = TransformStamped()
-            transform2.header.stamp = timestamp
-            transform2.header.frame_id = 'base_link'
-            transform2.child_frame_id = 'lidar'
-            transform2.transform.translation.x = 0.2  # 20cm forward
-            transform2.transform.translation.y = 0.0
-            transform2.transform.translation.z = 0.1  # 10cm up
-            transform2.transform.rotation.w = 1.0  # No rotation
-            tf_msg.transforms.append(transform2)
         
         return tf_msg
 
@@ -104,7 +99,7 @@ class PointCloudFixer:
         topics = reader.get_all_topics_and_types()
         
         # Add TF topics if they don't exist
-        tf_topics = ['/tf', '/tf_static']
+        tf_topics = ['/tf_static']
         for tf_topic_name in tf_topics:
             if not any(topic.name == tf_topic_name for topic in topics):
                 from rosbag2_py import TopicMetadata
@@ -125,10 +120,6 @@ class PointCloudFixer:
             
             # Write TF messages at regular intervals
             if self.should_write_tf(msg_time):
-                tf_msg = self.create_tf_message(msg_time)
-                writer.write('/tf', serialize_message(tf_msg), t)
-                self.last_tf_time = msg_time
-                
                 # For static TF, we only need to write once, but we'll write periodically
                 # to ensure it's available throughout the bag
                 static_tf_msg = self.create_tf_message(msg_time, is_static=True)
@@ -154,7 +145,7 @@ class PointCloudFixer:
                 xyz_raw = np.stack((pc_np['x'], pc_np['y'], pc_np['z']), axis=-1)
 
                 # Run your custom fix
-                fixed_xyz = convert_pc(xyz_raw, [-12.85, 7.85], [-60, 60], 96)
+                fixed_xyz = convert_pc(xyz_raw, [-12.85, 7.85], [-60, 60])
 
                 # Sanity check
                 if fixed_xyz.shape[0] != pc_np.shape[0]:

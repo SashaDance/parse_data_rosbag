@@ -103,7 +103,7 @@ def get_image_pointcloud_pairs(bag_path: str,
         if fix_pc:
             xyz = convert_pc(np.stack((pc['x'], pc['y'], pc['z']), axis=-1), [-12.85, 7.85], [-60, 60])
         else:
-            xyz = np.stack((pc['x'], pc['y'], pc['z']))
+            xyz = np.stack((pc['x'], pc['y'], pc['z']), axis=-1)
         
         yield cv_image, xyz
     
