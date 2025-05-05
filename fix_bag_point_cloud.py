@@ -11,12 +11,6 @@ from scipy.spatial.transform import Rotation
 from builtin_interfaces.msg import Time
 
 
-extrinsic = np.array([[0.00867315,-0.999956,0.00342156,0.296562],
-[-0.00140877,-0.00343391,-0.999993,-0.0114525],
-[0.999962,0.00866828,-0.00143847,0.0432614],
-[0,0,0,1]])
-rot = Rotation.from_matrix(extrinsic[:3, :3])
-print(rot.as_quat())
 # --- Your conversion function ---
 def convert_pc(point_cloud: np.ndarray, 
                elev_range: list[float], 
@@ -48,27 +42,35 @@ class PointCloudFixer:
         self.output_bag_path = output_bag_path
         self.tf_interval = 0.1  # seconds between TF messages
         self.last_tf_time = None
+        self.extrinsic = np.array([
+            [0.00867315,-0.999956,0.00342156,0.296562],
+            [-0.00140877,-0.00343391,-0.999993,-0.0114525],
+            [0.999962,0.00866828,-0.00143847,0.0432614],
+            [0,0,0,1]
+        ])
 
     def create_tf_message(self, timestamp):
-        """Create a TF message"""
+        """Create a TF message from the extrinsic matrix"""
         tf_msg = TFMessage()
         transform = TransformStamped()
         
-        # Set header
         transform.header.stamp = timestamp
         transform.header.frame_id = 'camera'  # parent frame
         transform.child_frame_id = 'huawei_lidar'  # child frame
         
-        # Set transform - adjust these values to your needs
-        transform.transform.translation.x = 0.0
-        transform.transform.translation.y = 0.0
-        transform.transform.translation.z = 0.0
+        transform.transform.translation.x = self.extrinsic[0, 3]
+        transform.transform.translation.y = self.extrinsic[1, 3]
+        transform.transform.translation.z = self.extrinsic[2, 3]
         
-        # Identity quaternion (no rotation)
-        transform.transform.rotation.x = 0.0
-        transform.transform.rotation.y = 0.0
-        transform.transform.rotation.z = 0.0
-        transform.transform.rotation.w = 1.0
+        rotation_matrix = self.extrinsic[:3, :3]
+        
+        rot = Rotation.from_matrix(rotation_matrix)
+        quat = rot.as_quat()
+        
+        transform.transform.rotation.x = quat[0]
+        transform.transform.rotation.y = quat[1]
+        transform.transform.rotation.z = quat[2]
+        transform.transform.rotation.w = quat[3]
         
         tf_msg.transforms.append(transform)
         
